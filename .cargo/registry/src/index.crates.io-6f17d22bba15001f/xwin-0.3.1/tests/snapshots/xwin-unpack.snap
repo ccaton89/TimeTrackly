@@ -1,0 +1,15 @@
+---
+source: src/main.rs
+expression: help_text
+---
+Unpacks all of the downloaded packages to disk
+
+Usage: unpack
+
+Options:
+  -h, --help
+          Print help
+
+  -V, --version
+          Print version
+

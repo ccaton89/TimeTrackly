@@ -1,0 +1,195 @@
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "*"
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+name: CI
+jobs:
+  lint:
+    name: Lint
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+
+      # make sure all code has been formatted with rustfmt
+      - name: check rustfmt
+        run: |
+          rustup component add rustfmt
+          cargo fmt -- --check --color always
+
+      # run clippy to verify we have no warnings
+      - run: cargo fetch
+      - name: cargo clippy
+        run: |
+          rustup component add clippy
+          cargo clippy --all-targets --all-features -- -D warnings
+
+  check_compiles:
+    name: Verify compiles
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      # Add the actual target we compile for in the test
+      - run: rustup target add x86_64-pc-windows-msvc
+      - name: symlinks
+        run: |
+          set -eux
+          sudo ln -s clang-12 /usr/bin/clang-cl
+          sudo ln -s llvm-ar-12 /usr/bin/llvm-lib
+          sudo ln -s lld-link-12 /usr/bin/lld-link
+          sudo ln -s lld-12 /usr/bin/ld.lld
+          clang++ -v
+          ld.lld -v
+          llvm-lib -v
+          clang-cl -v
+          lld-link --version
+      - run: cargo fetch
+      - name: cargo test build
+        run: cargo build --tests --release
+      - name: cargo test
+        run: cargo test --release verify_compiles
+
+  check_deterministic:
+    name: Verify deterministic
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fetch
+      - name: cargo test build
+        run: cargo build --tests --release
+      - name: cargo test
+        run: cargo test --release verify_deterministic
+
+  check_cli:
+    name: Verify CLI
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fetch
+      - name: cargo test build
+        run: cargo build --tests
+      - name: cargo test
+        run: cargo test cli_help
+
+  deny-check:
+    name: cargo-deny
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check
+          arguments: --all-features
+
+  publish-check:
+    name: Publish Check
+    strategy:
+        matrix:
+          include:
+            - target: x86_64-unknown-linux-musl
+            - target: aarch64-unknown-linux-musl
+    runs-on: ubuntu-22.04
+    env:
+      CC_aarch64_unknown_linux_musl: clang
+      AR_aarch64_unknown_linux_musl: llvm-ar
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: "-Clink-self-contained=yes -Clinker=rust-lld"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.target }}
+      - run: cargo fetch --target ${{ matrix.target }}
+      - name: Install musl tools
+        if: endsWith(matrix.target, '-linux-musl')
+        run: sudo apt-get install -y musl-tools llvm
+      - name: cargo publish check
+        run: cargo publish --dry-run --target ${{ matrix.target }}
+
+  release:
+    name: Release
+    needs: [deny-check]
+    if: startsWith(github.ref, 'refs/tags/')
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-musl
+            strip: llvm-strip
+          - os: ubuntu-22.04
+            target: aarch64-unknown-linux-musl
+            strip: llvm-strip
+          - os: macos-12
+            target: x86_64-apple-darwin
+            strip: strip
+          - os: macos-12
+            target: aarch64-apple-darwin
+            strip: strip
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+            strip: ""
+    runs-on: ${{ matrix.os }}
+    env:
+      CC_aarch64_unknown_linux_musl: clang
+      AR_aarch64_unknown_linux_musl: llvm-ar
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: "-Clink-self-contained=yes -Clinker=rust-lld"
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install musl tools
+        if: endsWith(matrix.target, '-linux-musl')
+        run: sudo apt-get install -y musl-tools llvm
+      - name: Checkout
+        uses: actions/checkout@v3
+      - run: cargo fetch --target ${{ matrix.target }}
+      - name: Release build
+        shell: bash
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+      - name: Package
+        shell: bash
+        run: |
+          name=xwin
+          tag=$(git describe --tags --abbrev=0)
+          target="${{ matrix.target }}"
+          release_name="$name-$tag-$target"
+          release_tar="${release_name}.tar.gz"
+          mkdir "$release_name"
+
+          if [ ! -z "${{ matrix.strip }}" ]; then
+            ${{ matrix.strip }} "target/$target/release/$name"
+          fi
+
+          cp "target/$target/release/$name" "$release_name/"
+          cp README.md LICENSE-APACHE LICENSE-MIT "$release_name/"
+          tar czvf "$release_tar" "$release_name"
+
+          rm -r "$release_name"
+
+          if [ "${{ matrix.target }}" == "x86_64-pc-windows-msvc" ]; then
+            echo "(Get-FileHash \"${release_tar}\" -Algorithm SHA256).Hash | Out-File -Encoding ASCII -NoNewline \"${release_tar}.sha256\"" | pwsh -c -
+          else
+            echo -n "$(shasum -ba 256 "${release_tar}" | cut -d " " -f 1)" > "${release_tar}.sha256"
+          fi
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: "xwin*"
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}

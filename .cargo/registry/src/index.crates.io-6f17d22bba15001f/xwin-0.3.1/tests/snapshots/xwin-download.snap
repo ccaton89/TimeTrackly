@@ -1,0 +1,16 @@
+---
+source: src/main.rs
+expression: help_text
+---
+Downloads all the selected packages that aren't already present in the download
+cache
+
+Usage: download
+
+Options:
+  -h, --help
+          Print help
+
+  -V, --version
+          Print version
+

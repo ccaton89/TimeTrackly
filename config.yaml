@@ -1,0 +1,9 @@
+telegram:
+  token: "7690402847:AAF2X9TD86Jk-e-5_RW-0yru2NLs0R5u9u0"  # Get from @BotFather
+  chat_id: "6428406707"  # Get from @userinfobot
+
+dex_screener:
+  refresh_interval: 300
+
+rugcheck:
+  api_key: "your_rugcheck_key"

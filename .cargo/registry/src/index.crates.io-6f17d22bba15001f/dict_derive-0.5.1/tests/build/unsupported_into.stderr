@@ -1,0 +1,19 @@
+error[E0277]: the trait bound `Test: IntoPy<Py<PyAny>>` is not satisfied
+ --> tests/build/unsupported_into.rs:9:5
+  |
+9 |     test: Test,
+  |     ^^^^^^----
+  |     |     |
+  |     |     required by a bound introduced by this call
+  |     the trait `IntoPy<Py<PyAny>>` is not implemented for `Test`
+  |
+  = help: the following other types implement trait `IntoPy<T>`:
+            <&'a OsString as IntoPy<Py<PyAny>>>
+            <&'a Path as IntoPy<Py<PyAny>>>
+            <&'a PathBuf as IntoPy<Py<PyAny>>>
+            <&'a PyErr as IntoPy<Py<PyAny>>>
+            <&'a String as IntoPy<Py<PyAny>>>
+            <&'a [u8] as IntoPy<Py<PyAny>>>
+            <&'a str as IntoPy<Py<PyAny>>>
+            <&'a str as IntoPy<Py<PyString>>>
+          and $N others

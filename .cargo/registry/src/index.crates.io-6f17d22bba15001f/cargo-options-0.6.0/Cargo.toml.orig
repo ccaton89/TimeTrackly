@@ -1,0 +1,17 @@
+[package]
+name = "cargo-options"
+version = "0.6.0"
+edition = "2018"
+description = "Reusable common Cargo command line options"
+license = "MIT"
+keywords = ["clap", "cargo", "cli"]
+readme = "README.md"
+repository = "https://github.com/messense/cargo-options"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.0.0", features = ["derive", "env", "wrap_help"] }
+
+[dev-dependencies]
+trycmd = { version = "0.14.0", features = ["examples"] }

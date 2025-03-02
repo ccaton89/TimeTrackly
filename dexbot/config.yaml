@@ -1,0 +1,5 @@
+telegram:
+  token: "7690402847:AAF2X9TD86Jk-e-5_RW-0yru2NLs0R5u9u0"  # From @BotFather
+  chat_id: "6428406707"           # From @userinfobot
+
+# No API needed - uses pure on-chain logic

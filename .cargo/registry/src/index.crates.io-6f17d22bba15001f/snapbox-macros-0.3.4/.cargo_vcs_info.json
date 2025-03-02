@@ -1,0 +1,6 @@
+{
+  "git": {
+    "sha1": "50617db1bd9418d2e3e48a138be8bfbeeb32497f"
+  },
+  "path_in_vcs": "crates/snapbox-macros"
+}

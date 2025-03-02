@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check rust formatting (rustfmt)
+        run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy --all
+
+  build:
+    needs: [fmt] # don't wait for clippy as fails rarely and takes longer
+    name: python${{ matrix.python-version }} ${{ matrix.platform.os }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false  # If one platform fails, allow the rest to keep testing.
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        platform: [
+          { os: "macOS-latest", rust-target: "x86_64-apple-darwin" },
+          { os: "ubuntu-latest", rust-target: "x86_64-unknown-linux-gnu" },
+          { os: "windows-latest", rust-target: "x86_64-pc-windows-msvc" },
+        ]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.platform.rust-target }}
+
+      - name: Build without default features
+        run: cargo test --no-default-features --verbose --target ${{ matrix.platform.rust-target }}
+
+    env:
+      RUST_BACKTRACE: 1
+
+  coverage:
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: coverage-cargo-${{ hashFiles('**/Cargo.toml') }}
+        continue-on-error: true
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - run: |
+          cargo llvm-cov clean
+          cargo llvm-cov --codecov --output-path codecov.json
+      - uses: codecov/codecov-action@v2
+        with:
+          file: codecov.json

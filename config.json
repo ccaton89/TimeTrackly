@@ -1,0 +1,31 @@
+# Paste your config and save with Ctrl+X, Y, Enter{
+    "dexscreener": {
+        "api_url": "https://api.dexscreener.com/latest/dex",
+        "api_key": "YOUR_DEXSCREENER_API_KEY"
+    },
+    "etherscan": {
+        "api_url": "https://api.etherscan.io/api",
+        "api_key": "YOUR_ETHERSCAN_API_KEY"
+    },
+    "gmgn": {
+        "api_key": "YOUR_GMGN_API_KEY"
+    },
+    "filters": {
+        "min_liquidity": 50000,
+        "min_volume": 100000,
+        "min_market_cap": 250000,
+        "max_top_holder": 0.2
+    },
+    "token_decimals": 18,
+    "trade_amount": 0.1,
+    "check_interval": 15
+}{
+     "telegram_bot_token": "7566824011:AAFwvZukXRf_CN5hqHeY6YYyuMjn_eWF_fw",
+     "telegram_chat_id": "6428406707",
+     "blacklisted_coins": [],
+     "blacklisted_devs": [],
+     "filters": {
+       "min_volume": 100000,
+       "max_supply_bundled": false
+     }
+   }
