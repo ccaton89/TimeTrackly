@@ -1,0 +1,9 @@
+.local/  
+.ssh/  
+.termux/  
+.viminfo  
+*.db  
+*.pyc  
+__pycache__/  
+.npm/  
+
